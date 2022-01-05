@@ -232,13 +232,14 @@ func (c *Controller) initWhenStartLeading() {
 	)
 
 	c.translator = translation.NewTranslator(&translation.TranslatorOptions{
-		PodCache:             c.podCache,
-		PodLister:            c.podLister,
-		EndpointLister:       c.epLister,
-		ServiceLister:        c.svcLister,
-		ApisixUpstreamLister: c.apisixUpstreamLister,
-		SecretLister:         c.secretLister,
-		UseEndpointSlices:    c.cfg.Kubernetes.WatchEndpointSlices,
+		PodCache:                 c.podCache,
+		PodLister:                c.podLister,
+		EndpointLister:           c.epLister,
+		ServiceLister:            c.svcLister,
+		ApisixUpstreamLister:     c.apisixUpstreamLister,
+		SecretLister:             c.secretLister,
+		UseEndpointSlices:        c.cfg.Kubernetes.WatchEndpointSlices,
+		ApisixPluginConfigLister: c.apisixPluginConfigLister,
 	})
 
 	if c.cfg.Kubernetes.IngressVersion == config.IngressNetworkingV1 {
