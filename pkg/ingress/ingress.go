@@ -125,7 +125,6 @@ func (c *ingressController) sync(ctx context.Context, ev *types.Event) error {
 		}
 		ing = ev.Tombstone.(kube.Ingress)
 	}
-
 	tctx, err := c.controller.translator.TranslateIngress(ing)
 	if err != nil {
 		log.Errorw("failed to translate ingress",

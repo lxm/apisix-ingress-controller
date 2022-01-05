@@ -43,6 +43,7 @@ func (t *translator) translateIngressV1(ing *networkingv1.Ingress) (*TranslateCo
 	plugins := t.translateAnnotations(ing.Annotations)
 	annoExtractor := annotations.NewExtractor(ing.Annotations)
 	useRegex := annoExtractor.GetBoolAnnotation(annotations.AnnotationsPrefix + "use-regex")
+	usePluginConfigs := annoExtractor.GetStringsAnnotation(annotations.AnnotationsPrefix + "use-plugin-conf")
 	// add https
 	for _, tls := range ing.Spec.TLS {
 		apisixTls := kubev2beta3.ApisixTls{
@@ -135,17 +136,33 @@ func (t *translator) translateIngressV1(ing *networkingv1.Ingress) (*TranslateCo
 				route.Vars = routeVars
 				route.Priority = _regexPriority
 			}
-			if len(plugins) > 0 {
-				route.Plugins = *(plugins.DeepCopy())
-
+			if len(plugins) > 0 || len(usePluginConfigs) > 0 {
 				pluginConfig = apisixv1.NewDefaultPluginConfig()
 				pluginConfig.Name = composeIngressPluginName(ing.Namespace, pathRule.Backend.Service.Name)
 				pluginConfig.ID = id.GenID(route.Name)
-				pluginConfig.Plugins = *(plugins.DeepCopy())
+				if len(plugins) > 0 {
+					route.Plugins = *(plugins.DeepCopy())
+					pluginConfig.Plugins = *(plugins.DeepCopy())
+				} else {
+					route.Plugins = make(map[string]interface{})
+				}
+
+				if len(usePluginConfigs) > 0 {
+					for _, pluginConfigName := range usePluginConfigs {
+						pc, err := t.ApisixPluginConfigLister.V2beta3(ing.Namespace, pluginConfigName)
+						if err != nil {
+							log.Errorf("failed to get pluginconfig with name %s in ns %s err:%v", pluginConfigName, ing.Namespace, err)
+							continue
+						}
+						route.Plugins["ing-"+pc.V2beta3().Name] = pc.V2beta3().Spec.Plugins
+						pluginConfig.Plugins["ing-"+pc.V2beta3().Name] = pc.V2beta3().Spec.Plugins
+					}
+				}
 				ctx.addPluginConfig(pluginConfig)
 
 				route.PluginConfigId = pluginConfig.ID
 			}
+
 			if ups != nil {
 				route.UpstreamId = ups.ID
 			}
@@ -160,6 +177,7 @@ func (t *translator) translateIngressV1beta1(ing *networkingv1beta1.Ingress) (*T
 	plugins := t.translateAnnotations(ing.Annotations)
 	annoExtractor := annotations.NewExtractor(ing.Annotations)
 	useRegex := annoExtractor.GetBoolAnnotation(annotations.AnnotationsPrefix + "use-regex")
+	usePluginConfigs := annoExtractor.GetStringsAnnotation(annotations.AnnotationsPrefix + "use-plugin-conf")
 	// add https
 	for _, tls := range ing.Spec.TLS {
 		apisixTls := kubev2beta3.ApisixTls{
@@ -252,15 +270,31 @@ func (t *translator) translateIngressV1beta1(ing *networkingv1beta1.Ingress) (*T
 				route.Vars = routeVars
 				route.Priority = _regexPriority
 			}
-			if len(plugins) > 0 {
-				route.Plugins = *(plugins.DeepCopy())
-
+			if len(plugins) > 0 || len(usePluginConfigs) > 0 {
 				pluginConfig = apisixv1.NewDefaultPluginConfig()
 				pluginConfig.Name = composeIngressPluginName(ing.Namespace, pathRule.Backend.ServiceName)
 				pluginConfig.ID = id.GenID(route.Name)
 				pluginConfig.Plugins = *(plugins.DeepCopy())
-				ctx.addPluginConfig(pluginConfig)
 
+				if len(plugins) > 0 {
+					route.Plugins = *(plugins.DeepCopy())
+					pluginConfig.Plugins = *(plugins.DeepCopy())
+				} else {
+					route.Plugins = make(map[string]interface{})
+				}
+
+				if len(usePluginConfigs) > 0 {
+					for _, pluginConfigName := range usePluginConfigs {
+						pc, err := t.ApisixPluginConfigLister.V2beta3(ing.Namespace, pluginConfigName)
+						if err != nil {
+							log.Errorf("failed to get pluginconfig with name %s in ns %s err:%v", pluginConfigName, ing.Namespace, err)
+							continue
+						}
+						route.Plugins["ing-"+pc.V2beta3().Name] = pc.V2beta3().Spec.Plugins
+						pluginConfig.Plugins["ing-"+pc.V2beta3().Name] = pc.V2beta3().Spec.Plugins
+					}
+				}
+				ctx.addPluginConfig(pluginConfig)
 				route.PluginConfigId = pluginConfig.ID
 			}
 			if ups != nil {
@@ -308,6 +342,7 @@ func (t *translator) translateIngressExtensionsV1beta1(ing *extensionsv1beta1.In
 	plugins := t.translateAnnotations(ing.Annotations)
 	annoExtractor := annotations.NewExtractor(ing.Annotations)
 	useRegex := annoExtractor.GetBoolAnnotation(annotations.AnnotationsPrefix + "use-regex")
+	usePluginConfigs := annoExtractor.GetStringsAnnotation(annotations.AnnotationsPrefix + "use-plugin-conf")
 
 	for _, rule := range ing.Spec.Rules {
 		for _, pathRule := range rule.HTTP.Paths {
@@ -372,13 +407,28 @@ func (t *translator) translateIngressExtensionsV1beta1(ing *extensionsv1beta1.In
 				route.Vars = routeVars
 				route.Priority = _regexPriority
 			}
-			if len(plugins) > 0 {
-				route.Plugins = *(plugins.DeepCopy())
-
+			if len(plugins) > 0 || len(usePluginConfigs) > 0 {
 				pluginConfig = apisixv1.NewDefaultPluginConfig()
 				pluginConfig.Name = composeIngressPluginName(ing.Namespace, pathRule.Backend.ServiceName)
 				pluginConfig.ID = id.GenID(route.Name)
-				pluginConfig.Plugins = *(plugins.DeepCopy())
+				if len(plugins) > 0 {
+					route.Plugins = *(plugins.DeepCopy())
+					pluginConfig.Plugins = *(plugins.DeepCopy())
+				} else {
+					route.Plugins = make(map[string]interface{})
+				}
+
+				if len(usePluginConfigs) > 0 {
+					for _, pluginConfigName := range usePluginConfigs {
+						pc, err := t.ApisixPluginConfigLister.V2beta3(ing.Namespace, pluginConfigName)
+						if err != nil {
+							log.Errorf("failed to get pluginconfig with name %s in ns %s err:%v", pluginConfigName, ing.Namespace, err)
+							continue
+						}
+						route.Plugins["ing-"+pc.V2beta3().Name] = pc.V2beta3().Spec.Plugins
+						pluginConfig.Plugins["ing-"+pc.V2beta3().Name] = pc.V2beta3().Spec.Plugins
+					}
+				}
 				ctx.addPluginConfig(pluginConfig)
 
 				route.PluginConfigId = pluginConfig.ID
